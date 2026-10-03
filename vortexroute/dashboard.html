@@ -1,0 +1,1602 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VortexRoute | Multi-Armed Bandit Smart Payment Router</title>
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <!-- Tone.js for micro-sonification -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            cirrus: {
+              sky: '#0284c7',
+              skyLight: '#e0f2fe',
+              citrus: '#ea580c',
+              citrusLight: '#ffedd5',
+              meadow: '#16a34a',
+              meadowLight: '#dcfce7',
+              obsidian: '#0f172a',
+              surface: 'rgba(255, 255, 255, 0.88)',
+              hairline: 'rgba(15, 23, 42, 0.07)',
+            }
+          },
+          boxShadow: {
+            'cirrus-card': '0 20px 45px -12px rgba(14, 116, 144, 0.08), 0 4px 16px -2px rgba(15, 23, 42, 0.03)',
+            'cirrus-pill': '0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 2px 6px -1px rgba(15, 23, 42, 0.06)',
+            'cirrus-float': '0 28px 60px -15px rgba(2, 132, 199, 0.12), 0 8px 24px -4px rgba(15, 23, 42, 0.04)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Cirrus Open Sky Backdrop */
+    body {
+      background: radial-gradient(130% 90% at 50% 0%, #e0f2fe 0%, #f0f9ff 32%, #f8fafc 70%, #f1f5f9 100%);
+      min-height: 100vh;
+      color: #0f172a;
+      letter-spacing: -0.015em;
+    }
+
+    /* Ambient atmospheric cloud aura */
+    .sky-cloud-glow {
+      position: fixed;
+      pointer-events: none;
+      z-index: 0;
+      border-radius: 9999px;
+      filter: blur(80px);
+      opacity: 0.65;
+    }
+
+    /* Custom Cirrus scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.4);
+      border-radius: 9999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+
+    /* Floating Pill Surface Base */
+    .cirrus-panel {
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(15, 23, 42, 0.07);
+      border-radius: 28px;
+      box-shadow: 0 16px 36px -10px rgba(14, 116, 144, 0.06), 0 3px 12px -2px rgba(15, 23, 42, 0.02);
+      transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s ease;
+    }
+
+    .cirrus-panel:hover {
+      box-shadow: 0 22px 48px -12px rgba(14, 116, 144, 0.09), 0 6px 18px -2px rgba(15, 23, 42, 0.03);
+    }
+
+    /* Obsidian Black Pill Buttons */
+    .btn-obsidian {
+      background: #0f172a;
+      color: #ffffff;
+      border-radius: 9999px;
+      padding: 0.55rem 1.25rem;
+      font-weight: 600;
+      font-size: 0.8125rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.2);
+    }
+
+    .btn-obsidian:hover {
+      background: #000000;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px -2px rgba(15, 23, 42, 0.3);
+    }
+
+    .btn-obsidian:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.25);
+    }
+
+    /* Secondary White Pill Button */
+    .btn-white-pill {
+      background: #ffffff;
+      color: #0f172a;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 9999px;
+      padding: 0.5rem 1.1rem;
+      font-weight: 600;
+      font-size: 0.8125rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .btn-white-pill:hover {
+      background: #f8fafc;
+      border-color: rgba(15, 23, 42, 0.16);
+      transform: translateY(-1px);
+    }
+
+    /* Calming Custom Range Slider */
+    input[type=range] {
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 9999px;
+      background: #e2e8f0;
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 9999px;
+      background: #0f172a;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
+      transition: transform 0.15s ease;
+    }
+
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+  </style>
+</head>
+
+<body class="relative flex flex-col min-h-screen antialiased selection:bg-sky-100 selection:text-sky-900">
+
+  <div class="sky-cloud-glow w-[540px] h-[360px] bg-sky-200/50 top-[-60px] left-[15%]"></div>
+  <div class="sky-cloud-glow w-[480px] h-[320px] bg-blue-100/60 top-[120px] right-[10%]"></div>
+  <div class="sky-cloud-glow w-[600px] h-[340px] bg-sky-100/40 bottom-[5%] left-[25%]"></div>
+
+  <!-- Header Floating Pill Nav -->
+  <header class="relative z-40 px-4 lg:px-8 pt-5 pb-3">
+    <div class="max-w-[1520px] mx-auto cirrus-panel px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+
+      <!-- Brand & Engine Tag -->
+      <div class="flex items-center space-x-4">
+        <div
+          class="h-11 w-11 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex items-center justify-center text-sky-600 font-bold text-lg">
+          <i class="fa-solid fa-route"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2.5">
+            <h1 class="text-xl font-bold tracking-tight text-slate-900">VortexRoute</h1>
+            <span
+              class="px-2.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider rounded-full bg-sky-50 text-sky-700 border border-sky-200/80">
+              UPI MAB Engine
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 font-medium">Discounted Thompson Sampling • Non-Stationary Routing • CBS
+            Brownout Mitigation</p>
+        </div>
+      </div>
+
+      <!-- Real-Time Metrics Cloud Stats -->
+      <div class="hidden lg:flex items-center space-x-8 text-xs font-mono border-l border-slate-200/80 pl-8">
+        <div>
+          <span class="text-slate-400 text-[10px] uppercase font-sans font-semibold tracking-wider block">Network
+            Health</span>
+          <span id="badge-health" class="text-emerald-600 font-semibold flex items-center gap-1.5 mt-0.5">
+            <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> OPTIMAL (99.4%)
+          </span>
+        </div>
+        <div>
+          <span class="text-slate-400 text-[10px] uppercase font-sans font-semibold tracking-wider block">Backend
+            Stream</span>
+          <span id="badge-backend-status" class="text-sky-700 font-semibold mt-0.5 flex items-center gap-1.5">
+            <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span> Standalone Mock
+          </span>
+        </div>
+        <div>
+          <span class="text-slate-400 text-[10px] uppercase font-sans font-semibold tracking-wider block">Decision
+            SLA</span>
+          <span class="text-slate-800 font-semibold mt-0.5 block">&le; 2.0 ms Overhead Budget</span>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <!-- Audio Sonification Toggle -->
+        <button id="btn-audio" onclick="toggleAudio()" class="btn-white-pill"
+          title="Toggle audio sonification feedback">
+          <i class="fa-solid fa-volume-xmark text-slate-400" id="audio-icon"></i>
+          <span id="audio-text" class="hidden sm:inline">Sound Off</span>
+        </button>
+
+        <!-- Speed selector pills -->
+        <div class="flex items-center bg-slate-100/80 rounded-full p-1 border border-slate-200/60 text-xs font-mono">
+          <button onclick="setTPS(5)" class="tps-btn px-3 py-1 rounded-full text-slate-600 font-medium transition"
+            data-tps="5">5/s</button>
+          <button onclick="setTPS(15)"
+            class="tps-btn px-3 py-1 rounded-full bg-white text-slate-900 font-bold shadow-sm transition"
+            data-tps="15">15/s</button>
+          <button onclick="setTPS(35)" class="tps-btn px-3 py-1 rounded-full text-slate-600 font-medium transition"
+            data-tps="35">35/s</button>
+        </div>
+
+        <!-- Flow Pause/Resume Pill -->
+        <button id="btn-toggle-sim" onclick="toggleSimulation()" class="btn-obsidian">
+          <i class="fa-solid fa-pause text-xs" id="sim-icon"></i>
+          <span id="sim-label">Pause Flow</span>
+        </button>
+
+        <!-- Reset Button -->
+        <button onclick="resetSimulation()"
+          class="h-9 w-9 rounded-full bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-600 flex items-center justify-center transition shadow-sm"
+          title="Reset Simulation State">
+          <i class="fa-solid fa-arrow-rotate-right text-xs"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <main class="relative z-10 flex-1 max-w-[1520px] w-full mx-auto px-4 lg:px-8 py-5 space-y-6">
+
+    <!-- KPI Metric Surfaces Grid -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+
+      <!-- Ingestion Volume -->
+      <div class="cirrus-panel p-6">
+        <div class="flex items-center justify-between">
+          <p class="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Total Transactions</p>
+          <span class="w-2.5 h-2.5 rounded-full bg-sky-500 animate-ping"></span>
+        </div>
+        <h3 id="stat-total-tx" class="text-3xl font-extrabold font-mono text-slate-900 mt-2">0</h3>
+        <p class="text-xs text-sky-700 font-medium mt-2 flex items-center gap-1.5">
+          <i class="fa-solid fa-cloud-arrow-up text-[10px]"></i> Live UPI Stream Ingested
+        </p>
+      </div>
+
+      <!-- Success Rate (Meadow Green) -->
+      <div class="cirrus-panel p-6">
+        <div class="flex items-center justify-between">
+          <p class="text-[11px] uppercase tracking-wider font-semibold text-slate-400">System Success Rate</p>
+          <span
+            class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold font-mono border border-emerald-200">
+            +18.1% vs Baseline
+          </span>
+        </div>
+        <h3 id="stat-overall-sr" class="text-3xl font-extrabold font-mono text-emerald-600 mt-2">99.4%</h3>
+        <p class="text-xs text-slate-500 mt-2">
+          vs 81.3% Naive Static Priority
+        </p>
+      </div>
+
+      <!-- Tail Latency (Citrus Orange) -->
+      <div class="cirrus-panel p-6">
+        <div class="flex items-center justify-between">
+          <p class="text-[11px] uppercase tracking-wider font-semibold text-slate-400">P95 Tail Latency</p>
+          <span
+            class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold font-mono border border-amber-200">
+            SLA: 1000ms
+          </span>
+        </div>
+        <h3 id="stat-avg-p95" class="text-3xl font-extrabold font-mono text-amber-600 mt-2">128 ms</h3>
+        <p class="text-xs text-slate-500 mt-2">
+          Sub-second Core Banking Buffer
+        </p>
+      </div>
+
+      <!-- Financial MDR Arbitrage -->
+      <div class="cirrus-panel p-6">
+        <div class="flex items-center justify-between">
+          <p class="text-[11px] uppercase tracking-wider font-semibold text-slate-400">MDR Fee Arbitrage</p>
+          <span
+            class="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 text-[10px] font-bold font-mono border border-sky-200">
+            Saved
+          </span>
+        </div>
+        <h3 id="stat-fees-saved" class="text-3xl font-extrabold font-mono text-slate-900 mt-2">₹0.00</h3>
+        <p class="text-xs text-slate-500 mt-2">
+          Cost Optimization Engine Active
+        </p>
+      </div>
+
+    </section>
+
+    <section class="cirrus-panel p-6">
+      <div class="flex flex-wrap items-center justify-between mb-4 gap-3">
+        <div class="flex items-center space-x-3">
+          <span class="h-2.5 w-2.5 rounded-full bg-sky-500 animate-ping"></span>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900">
+            High-Concurrency Packet Ingestion & Routing Canvas
+          </h2>
+        </div>
+        <div class="flex items-center gap-5 text-xs font-mono text-slate-500">
+          <span class="flex items-center gap-1.5"><span
+              class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shadow-sm"></span> Optimal (&lt;300ms)</span>
+          <span class="flex items-center gap-1.5"><span
+              class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shadow-sm"></span> Tail Latency
+            (300-999ms)</span>
+          <span class="flex items-center gap-1.5"><span
+              class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block shadow-sm"></span> CBS Brownout Drop
+            (&ge;1000ms)</span>
+        </div>
+      </div>
+
+      <!-- Crisp Clean Sky Canvas Container -->
+      <div
+        class="relative w-full h-44 sm:h-56 rounded-2xl bg-gradient-to-r from-sky-50/70 via-white/80 to-sky-50/50 border border-slate-200/80 overflow-hidden shadow-inner">
+        <canvas id="flowCanvas" class="w-full h-full block"></canvas>
+      </div>
+    </section>
+
+    <section>
+      <div class="flex flex-wrap items-center justify-between mb-3.5 gap-2 px-1">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-building-columns text-sky-600"></i> Acquirer Gateway Nodes & Autonomous Recovery Probes
+        </h2>
+        <span class="text-xs text-slate-400 font-mono">Click 'Induce CBS Brownout' to test real-time Thompson Sampling
+          evacuation</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" id="gateway-cards-container">
+        <!-- Dynamically populated via JS with Cirrus styling -->
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Traffic Share Over Time (Left 2 cols) -->
+      <div class="cirrus-panel p-6 lg:col-span-2 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Dynamic Traffic Allocation Split (%)</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Thompson Sampling automatically drains failing arms and
+              re-evaluates recovery</p>
+          </div>
+          <span
+            class="text-[11px] font-mono font-medium px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200/80">
+            Rolling 60s Window
+          </span>
+        </div>
+        <div class="h-64 w-full">
+          <canvas id="trafficChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Cirrus Focal Arbitrage Card (Right 1 col) -->
+      <div class="cirrus-panel p-6 flex flex-col justify-between space-y-6">
+        <div>
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] uppercase tracking-widest font-bold text-slate-400 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              Merchant Arbitrage
+            </span>
+            <span
+              class="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+              -32% Fee Delta
+            </span>
+          </div>
+
+          <!-- Crisp Focal Value Presentation -->
+          <div class="mt-5">
+            <span class="text-xs text-slate-400 uppercase font-mono block">Estimated Cost Savings</span>
+            <div class="flex items-baseline font-mono text-slate-900 mt-1">
+              <span class="text-2xl font-bold text-slate-400 mr-1">₹</span>
+              <span class="text-5xl font-extrabold tracking-tight" id="vf-amount">0</span>
+              <span class="text-2xl font-bold text-slate-400" id="vf-decimals">.00</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">
+              Real-time savings generated versus the standard 1.80% flat aggregator baseline default.
+            </p>
+          </div>
+        </div>
+
+        <!-- Mini Arm Summary List -->
+        <div class="space-y-2 pt-4 border-t border-slate-100 text-xs font-mono">
+          <div class="flex justify-between items-center text-slate-600">
+            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-sky-500"></span> HDFC
+              Direct</span>
+            <span class="font-bold text-slate-800">1.20% MDR</span>
+          </div>
+          <div class="flex justify-between items-center text-slate-600">
+            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> ICICI
+              Stack</span>
+            <span class="font-bold text-slate-800">1.10% MDR</span>
+          </div>
+          <div class="flex justify-between items-center text-slate-600">
+            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Axis
+              Neo</span>
+            <span class="font-bold text-slate-800">0.90% MDR</span>
+          </div>
+          <div class="flex justify-between items-center text-slate-600">
+            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-purple-500"></span>
+              Razorpay</span>
+            <span class="font-bold text-slate-800">1.80% MDR</span>
+          </div>
+        </div>
+
+        <button onclick="toggleSimulation()" class="btn-obsidian w-full justify-center">
+          <i class="fa-solid fa-bolt text-xs"></i>
+          <span>Inspect Active Routines</span>
+        </button>
+      </div>
+
+    </section>
+
+    <section class="cirrus-panel p-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-bold text-slate-900">Multi-Objective Utility Formula</h3>
+            <span
+              class="text-[10px] font-mono font-semibold text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-full">
+              Beta Posterior
+            </span>
+          </div>
+
+          <div
+            class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-xs font-mono text-slate-700 space-y-2">
+            <div class="text-slate-900 font-bold">Composite Utility Scoring Function:</div>
+            <div
+              class="text-[12px] bg-white p-2.5 rounded-xl border border-slate-200 text-sky-800 font-semibold shadow-sm">
+              Score = &theta;<sub>sample</sub> &minus; (w<sub>lat</sub> &times; P95/1000) &minus; (w<sub>fee</sub>
+              &times; MDR/0.03)
+            </div>
+            <p class="text-[11px] text-slate-500 leading-relaxed pt-1">
+              &bull; <strong>&theta;<sub>sample</sub> ~ Beta(&alpha;, &beta;)</strong> drawn dynamically per
+              payment.<br>
+              &bull; <strong>P95 Latency</strong> evaluated in a rolling 35-sample circular ring buffer.<br>
+              &bull; <strong>Decay factor &gamma; = 0.98</strong> prevents historical bias during rapid recovery.
+            </p>
+          </div>
+        </div>
+
+        <div class="space-y-5 text-xs font-mono">
+          <div>
+            <div class="flex justify-between text-slate-700 font-semibold mb-1.5">
+              <span>Latency Penalty Weight (w<sub>lat</sub>):</span>
+              <span id="label-w-lat" class="text-sky-600 font-bold">0.35</span>
+            </div>
+            <input type="range" id="slider-w-lat" min="0" max="1.5" step="0.05" value="0.35" oninput="updateWeights()"
+              class="w-full cursor-pointer">
+            <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+              <span>0.0 (Ignore Latency)</span>
+              <span>1.5 (Strict SLA Priority)</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-slate-700 font-semibold mb-1.5">
+              <span>MDR Fee Weight (w<sub>fee</sub>):</span>
+              <span id="label-w-fee" class="text-slate-900 font-bold">0.20</span>
+            </div>
+            <input type="range" id="slider-w-fee" min="0" max="1.0" step="0.05" value="0.20" oninput="updateWeights()"
+              class="w-full cursor-pointer">
+            <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+              <span>0.0 (Ignore Fees)</span>
+              <span>1.0 (Aggressive Margin Saving)</span>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+            <span>Standard UPI Switch: NPCI Specification</span>
+            <span class="text-emerald-700 font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-lock text-[10px]"></i> Idempotency Key Guard Active
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- P95 Latency History Chart (1 Col) -->
+      <div class="cirrus-panel p-6 lg:col-span-1">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-sm font-bold text-slate-900">P95 Latency Telemetry (ms)</h3>
+          <span
+            class="text-[10px] font-mono text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full font-bold">
+            Tail SLA
+          </span>
+        </div>
+        <p class="text-xs text-slate-500 mb-4">Instant identification of downstream core banking drops</p>
+        <div class="h-64 w-full">
+          <canvas id="latencyChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Live Dispatched Transactions Table (2 Cols) -->
+      <div class="cirrus-panel p-6 lg:col-span-2 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="flex items-center space-x-2.5">
+            <span class="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
+            <h3 class="text-sm font-bold text-slate-900">Live Dispatched UPI Transactions</h3>
+          </div>
+          <span class="text-[11px] font-mono text-slate-400">Displaying Latest 25 Executions</span>
+        </div>
+
+        <!-- Crisp Table Container -->
+        <div class="overflow-x-auto h-64 border border-slate-200/80 rounded-2xl bg-white shadow-sm">
+          <table class="w-full text-left text-xs font-mono">
+            <thead
+              class="bg-slate-50 text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-200 sticky top-0 z-10">
+              <tr>
+                <th class="py-2.5 px-4 font-semibold">Txn ID</th>
+                <th class="py-2.5 px-3 font-semibold">Remitter VPA</th>
+                <th class="py-2.5 px-3 font-semibold">Amount</th>
+                <th class="py-2.5 px-3 font-semibold">Gateway</th>
+                <th class="py-2.5 px-3 font-semibold">Latency</th>
+                <th class="py-2.5 px-3 font-semibold">MDR Fee</th>
+                <th class="py-2.5 px-3 font-semibold">Score</th>
+                <th class="py-2.5 px-4 font-semibold text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody id="txn-stream-body" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Dynamically populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer
+    class="relative z-10 border-t border-slate-200/80 bg-white/60 backdrop-blur py-5 mt-10 text-center text-xs font-mono text-slate-500">
+    VortexRoute High-Throughput UPI Engine • Cirrus Design System Edition • Multi-Armed Bandit Thompson Sampling
+  </footer>
+
+  <script>
+    // --- Simulation Core State ---
+    let isRunning = true;
+    let transactionsPerSecond = 15;
+    let audioEnabled = false;
+    let synth = null;
+
+    let weights = {
+      w_latency: 0.35,
+      w_fee: 0.20,
+      sla_ms: 1000.0
+    };
+
+    // Financial KPI Trackers
+    let totalTransactions = 0;
+    let successfulTransactions = 0;
+    let totalFeesVortex = 0;
+    let totalFeesNaive = 0;
+
+    // Gateway Definition with Cirrus Calm Tri-Color Accents
+    const gateways = {
+      HDFC: {
+        id: "HDFC",
+        name: "HDFC Direct",
+        color: "#0284c7", // Sky Blue
+        bgColor: "#e0f2fe",
+        mdr: 0.012,       // 1.20%
+        baseLatency: 110,
+        baseSuccessRate: 0.995,
+        isDegraded: false,
+        degradedLatency: 1350,
+        degradedSuccessRate: 0.55,
+        alpha: 8.0,
+        beta: 1.0,
+        recentLatency: [],
+        routesCount: 0,
+        successCount: 0,
+        x: 0, y: 0
+      },
+      ICICI: {
+        id: "ICICI",
+        name: "ICICI Stack",
+        color: "#16a34a", // Meadow Green
+        bgColor: "#dcfce7",
+        mdr: 0.011,       // 1.10%
+        baseLatency: 130,
+        baseSuccessRate: 0.990,
+        isDegraded: false,
+        degradedLatency: 1200,
+        degradedSuccessRate: 0.60,
+        alpha: 8.0,
+        beta: 1.0,
+        recentLatency: [],
+        routesCount: 0,
+        successCount: 0,
+        x: 0, y: 0
+      },
+      AXIS: {
+        id: "AXIS",
+        name: "Axis Neo",
+        color: "#ea580c", // Citrus Orange
+        bgColor: "#ffedd5",
+        mdr: 0.009,       // 0.90% (lowest cost)
+        baseLatency: 155,
+        baseSuccessRate: 0.982,
+        isDegraded: false,
+        degradedLatency: 1250,
+        degradedSuccessRate: 0.58,
+        alpha: 7.0,
+        beta: 1.0,
+        recentLatency: [],
+        routesCount: 0,
+        successCount: 0,
+        x: 0, y: 0
+      },
+      RAZORPAY: {
+        id: "RAZORPAY",
+        name: "Razorpay Super",
+        color: "#4f46e5", // Indigo Accent
+        bgColor: "#e0e7ff",
+        mdr: 0.018,       // 1.80% (premium reliability)
+        baseLatency: 165,
+        baseSuccessRate: 0.994,
+        isDegraded: false,
+        degradedLatency: 1150,
+        degradedSuccessRate: 0.68,
+        alpha: 9.0,
+        beta: 1.0,
+        recentLatency: [],
+        routesCount: 0,
+        successCount: 0,
+        x: 0, y: 0
+      }
+    };
+
+    // Particles and visual FX for Canvas
+    const particles = [];
+    const ripples = [];
+    const sparks = [];
+    let canvasTime = 0;
+    const MAX_PARTICLES = 160;
+
+    // --- STREAMING_CHUNK:Configuring WebSocket client connection to live FastAPI backend... ---
+    let socket = null;
+    let isConnectedToBackend = false;
+
+    function connectWebSocket() {
+      const wsUrl = "ws://localhost:8000/ws/telemetry";
+      const statusBadge = document.getElementById("badge-backend-status");
+
+      try {
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+          isConnectedToBackend = true;
+          if (statusBadge) {
+            statusBadge.className = "text-emerald-600 font-semibold mt-0.5 flex items-center gap-1.5";
+            statusBadge.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span> Live ws://localhost:8000`;
+          }
+          // When connected to the real backend, stop the browser-side mock generator
+          if (simIntervalId) {
+            clearInterval(simIntervalId);
+            simIntervalId = null;
+          }
+        };
+
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            handleLiveBackendTransaction(data);
+          } catch (err) {
+            console.error("Failed to parse incoming telemetry event:", err);
+          }
+        };
+
+        socket.onclose = () => {
+          isConnectedToBackend = false;
+          if (statusBadge) {
+            statusBadge.className = "text-slate-500 font-semibold mt-0.5 flex items-center gap-1.5";
+            statusBadge.innerHTML = `<span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span> Standalone Mock (Reconnecting...)`;
+          }
+          // Resume local mock ticker if backend disconnects
+          if (!simIntervalId && isRunning) {
+            restartSimInterval();
+          }
+          setTimeout(connectWebSocket, 3000);
+        };
+
+        socket.onerror = () => {
+          if (socket) socket.close();
+        };
+      } catch (e) {
+        console.warn("Backend WebSocket offline, running in mock simulation mode:", e);
+      }
+    }
+
+    // Process a real transaction dispatched from the FastAPI backend
+    function handleLiveBackendTransaction(data) {
+      if (!isRunning) return;
+
+      totalTransactions++;
+      const chosen = gateways[data.gateway] || gateways.HDFC;
+      chosen.routesCount++;
+
+      const isSuccess = data.status === "SUCCESS";
+      const latency = data.latency_ms || 120;
+
+      if (isSuccess) {
+        chosen.successCount++;
+        successfulTransactions++;
+        playNote("G5");
+      } else {
+        playNote("C3");
+      }
+
+      chosen.recentLatency.push(latency);
+      if (chosen.recentLatency.length > 35) chosen.recentLatency.shift();
+
+      if (data.alpha) chosen.alpha = data.alpha;
+      if (data.beta) chosen.beta = data.beta;
+
+      const vortexFee = data.fee || (data.amount_raw * chosen.mdr);
+      const naiveFee = (data.amount_raw || 1000) * 0.018;
+      totalFeesVortex += vortexFee;
+      totalFeesNaive += naiveFee;
+
+      spawnPacket(chosen, data.status, latency);
+
+      prependStreamRow({
+        id: data.txn_id,
+        vpa: data.vpa,
+        amount: "₹" + (data.amount_raw || 500).toLocaleString(),
+        gateway: chosen.id,
+        gatewayColor: chosen.color,
+        latency: Math.round(latency) + " ms",
+        fee: "₹" + vortexFee.toFixed(2),
+        score: (data.score || 0.95).toFixed(3),
+        status: data.status
+      });
+    }
+
+    // --- Audio Initializer using Tone.js (no external URLs) ---
+    function initAudio() {
+      if (!synth && window.Tone) {
+        try {
+          synth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "sine" },
+            envelope: { attack: 0.004, decay: 0.07, sustain: 0, release: 0.04 }
+          }).toDestination();
+          synth.volume.value = -22;
+        } catch (e) {
+          console.warn("Audio deferred:", e);
+        }
+      }
+    }
+
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      const icon = document.getElementById("audio-icon");
+      const label = document.getElementById("audio-text");
+      if (audioEnabled) {
+        Tone.start();
+        initAudio();
+        icon.className = "fa-solid fa-volume-high text-emerald-600";
+        label.textContent = "Sound On";
+      } else {
+        icon.className = "fa-solid fa-volume-xmark text-slate-400";
+        label.textContent = "Sound Off";
+      }
+    }
+
+    function playNote(freq) {
+      if (audioEnabled && synth) {
+        try { synth.triggerAttackRelease(freq, "32n"); } catch (e) { }
+      }
+    }
+
+    // --- STREAMING_CHUNK:Math Sampling for Beta posterior distributions... ---
+    function sampleBeta(alpha, beta) {
+      function gammaSample(shape) {
+        if (shape < 1) {
+          return gammaSample(shape + 1) * Math.pow(Math.random(), 1 / shape);
+        }
+        const d = shape - 1 / 3;
+        const c = 1 / Math.sqrt(9 * d);
+        while (true) {
+          let x, v;
+          do {
+            x = normalRandom();
+            v = 1 + c * x;
+          } while (v <= 0);
+          v = v * v * v;
+          const u = Math.random();
+          if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+          if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+        }
+      }
+      function normalRandom() {
+        let u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+      }
+      const gA = gammaSample(alpha);
+      const gB = gammaSample(beta);
+      return gA / (gA + gB);
+    }
+
+    function computeP95(latencies) {
+      if (!latencies || latencies.length === 0) return 120;
+      const sorted = [...latencies].sort((a, b) => a - b);
+      const idx = Math.min(sorted.length - 1, Math.floor(0.95 * sorted.length));
+      return sorted[idx];
+    }
+
+    // --- Decision Engine Core ---
+    function selectOptimalGateway() {
+      let bestGw = null;
+      let highestScore = -Infinity;
+      const scores = {};
+
+      for (const key in gateways) {
+        const gw = gateways[key];
+        const sampledSR = sampleBeta(gw.alpha, gw.beta);
+        const p95 = computeP95(gw.recentLatency);
+        const latencyPenalty = Math.min(p95 / weights.sla_ms, 2.5);
+        const feePenalty = gw.mdr / 0.03;
+
+        const score = sampledSR - (weights.w_latency * latencyPenalty) - (weights.w_fee * feePenalty);
+        scores[key] = { score, sampledSR, p95 };
+
+        if (score > highestScore) {
+          highestScore = score;
+          bestGw = gw;
+        }
+      }
+      return { chosen: bestGw || gateways.HDFC, scores };
+    }
+
+    // --- STREAMING_CHUNK:Building dynamic gateway cards with Cirrus design... ---
+    function buildGatewayCards() {
+      const container = document.getElementById("gateway-cards-container");
+      container.innerHTML = "";
+
+      for (const key in gateways) {
+        const gw = gateways[key];
+        const card = document.createElement("div");
+        card.id = `card-${gw.id}`;
+        card.className = "cirrus-panel p-5 relative overflow-hidden flex flex-col justify-between";
+
+        card.innerHTML = `
+          <div>
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center space-x-2.5">
+                <span class="w-3.5 h-3.5 rounded-full" style="background-color: ${gw.color}"></span>
+                <h4 class="font-bold text-sm tracking-tight text-slate-900">${gw.name}</h4>
+              </div>
+              <span id="badge-status-${gw.id}" class="text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                HEALTHY
+              </span>
+            </div>
+
+            <!-- Parameters Grid -->
+            <div class="grid grid-cols-2 gap-2 text-xs font-mono my-3 bg-slate-50/80 p-3 rounded-2xl border border-slate-200/60">
+              <div>
+                <span class="text-[10px] text-slate-400 block uppercase font-sans font-semibold">P95 Tail</span>
+                <span id="metric-p95-${gw.id}" class="text-slate-900 font-bold text-sm">-- ms</span>
+              </div>
+              <div>
+                <span class="text-[10px] text-slate-400 block uppercase font-sans font-semibold">Live SR</span>
+                <span id="metric-sr-${gw.id}" class="text-emerald-700 font-bold text-sm">100%</span>
+              </div>
+              <div class="pt-1.5 border-t border-slate-200/50">
+                <span class="text-[10px] text-slate-400 block uppercase font-sans font-semibold">MDR Fee</span>
+                <span class="text-slate-800 font-bold text-sm">${(gw.mdr * 100).toFixed(2)}%</span>
+              </div>
+              <div class="pt-1.5 border-t border-slate-200/50">
+                <span class="text-[10px] text-slate-400 block uppercase font-sans font-semibold">Beta (&alpha;, &beta;)</span>
+                <span id="metric-beta-${gw.id}" class="text-sky-700 font-bold text-sm">${gw.alpha.toFixed(1)}, ${gw.beta.toFixed(1)}</span>
+              </div>
+            </div>
+
+            <!-- Traffic Share Bar -->
+            <div class="space-y-1.5 mb-4">
+              <div class="flex justify-between text-[11px] font-mono text-slate-500">
+                <span>Traffic Allocation</span>
+                <span id="metric-share-${gw.id}" class="font-bold text-slate-900">25.0%</span>
+              </div>
+              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/60">
+                <div id="bar-share-${gw.id}" class="h-full rounded-full transition-all duration-300" style="width: 25%; background-color: ${gw.color}"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fault Injection Action -->
+          <div class="pt-2">
+            <button id="btn-fault-${gw.id}" onclick="toggleGatewayFault('${gw.id}')" 
+                    class="w-full py-2 px-3 rounded-full text-xs font-medium transition-all flex items-center justify-center gap-2 bg-white hover:bg-rose-50 border border-slate-200/90 text-rose-600 hover:border-rose-300 shadow-sm active:scale-[0.98]">
+              <i class="fa-solid fa-triangle-exclamation text-[11px]"></i>
+              <span>Induce CBS Brownout</span>
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      }
+    }
+
+    function toggleGatewayFault(id) {
+      const gw = gateways[id];
+      gw.isDegraded = !gw.isDegraded;
+
+      const btn = document.getElementById(`btn-fault-${id}`);
+      const badge = document.getElementById(`badge-status-${id}`);
+      const card = document.getElementById(`card-${id}`);
+
+      if (gw.isDegraded) {
+        btn.innerHTML = `<i class="fa-solid fa-heart-pulse text-[11px]"></i> <span>Recover Bank</span>`;
+        btn.className = "w-full py-2 px-3 rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-2 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 active:scale-[0.98]";
+        badge.className = "text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold bg-rose-50 text-rose-700 border border-rose-200 animate-pulse";
+        badge.textContent = "BROWNOUT";
+        card.classList.add("ring-2", "ring-rose-400/50");
+        playNote("A2");
+      } else {
+        btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-[11px]"></i> <span>Induce CBS Brownout</span>`;
+        btn.className = "w-full py-2 px-3 rounded-full text-xs font-medium transition-all flex items-center justify-center gap-2 bg-white hover:bg-rose-50 border border-slate-200/90 text-rose-600 hover:border-rose-300 shadow-sm active:scale-[0.98]";
+        badge.className = "text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200";
+        badge.textContent = "HEALTHY";
+        card.classList.remove("ring-2", "ring-rose-400/50");
+        playNote("C5");
+      }
+    }
+
+    // --- STREAMING_CHUNK:Setting up Chart.js telemetry instances for Cirrus style... ---
+    let trafficChart, latencyChart;
+    const CHART_HISTORY_POINTS = 30;
+    const timeLabels = Array(CHART_HISTORY_POINTS).fill("");
+
+    function setupCharts() {
+      const chartCommonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 0 },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { color: '#64748b', font: { family: 'Plus Jakarta Sans', size: 11, weight: '500' }, boxWidth: 10, usePointStyle: true }
+          }
+        },
+        scales: {
+          x: { grid: { color: 'rgba(15, 23, 42, 0.04)' }, ticks: { display: false } },
+          y: { grid: { color: 'rgba(15, 23, 42, 0.04)' }, ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } } }
+        }
+      };
+
+      // 1. Traffic Allocation Split Line Chart
+      const ctxTraffic = document.getElementById("trafficChart").getContext("2d");
+      trafficChart = new Chart(ctxTraffic, {
+        type: 'line',
+        data: {
+          labels: [...timeLabels],
+          datasets: Object.values(gateways).map(gw => ({
+            label: gw.name,
+            data: Array(CHART_HISTORY_POINTS).fill(25),
+            borderColor: gw.color,
+            backgroundColor: gw.color + "14",
+            borderWidth: 2.2,
+            tension: 0.35,
+            fill: true,
+            pointRadius: 0
+          }))
+        },
+        options: {
+          ...chartCommonOptions,
+          scales: {
+            ...chartCommonOptions.scales,
+            y: { ...chartCommonOptions.scales.y, min: 0, max: 100, ticks: { callback: v => v + '%' } }
+          }
+        }
+      });
+
+      // 2. Latency Telemetry Chart
+      const ctxLatency = document.getElementById("latencyChart").getContext("2d");
+      latencyChart = new Chart(ctxLatency, {
+        type: 'line',
+        data: {
+          labels: [...timeLabels],
+          datasets: Object.values(gateways).map(gw => ({
+            label: gw.id,
+            data: Array(CHART_HISTORY_POINTS).fill(gw.baseLatency),
+            borderColor: gw.color,
+            borderWidth: 2,
+            tension: 0.3,
+            fill: false,
+            pointRadius: 0
+          }))
+        },
+        options: {
+          ...chartCommonOptions,
+          scales: {
+            ...chartCommonOptions.scales,
+            y: { ...chartCommonOptions.scales.y, min: 50, max: 1500, ticks: { callback: v => v + 'ms' } }
+          }
+        }
+      });
+    }
+
+    // --- STREAMING_CHUNK:Rendering Canvas animation with crisp Cirrus aesthetic... ---
+    const canvas = document.getElementById("flowCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+
+      const gwKeys = Object.keys(gateways);
+      gwKeys.forEach((key, idx) => {
+        const gw = gateways[key];
+        gw.x = canvas.width - 80;
+        gw.y = (canvas.height / (gwKeys.length + 1)) * (idx + 1);
+        gw.pulseScale = 1.0;
+      });
+    }
+    window.addEventListener("resize", resizeCanvas);
+
+    function spawnPacket(selectedGw, status, latency) {
+      if (particles.length > MAX_PARTICLES) return;
+
+      // Random lane offset so concurrent packets flow like an expressway without clipping
+      const laneSpread = (Math.random() - 0.5) * 32;
+      const speed = Math.max(0.014, Math.min(0.045, (320 / Math.max(latency, 90)) * 0.035));
+
+      particles.push({
+        startX: 65,
+        startY: canvas.height / 2,
+        targetX: selectedGw.x,
+        targetY: selectedGw.y,
+        laneSpread: laneSpread,
+        progress: 0,
+        speed: speed,
+        color: status === 'SUCCESS' ? (latency < 300 ? '#16a34a' : '#ea580c') : '#e11d48',
+        rgb: status === 'SUCCESS' ? (latency < 300 ? '22, 163, 74' : '234, 88, 12') : '225, 29, 72',
+        radius: status === 'SUCCESS' ? 3.6 : 4.6,
+        trail: [],
+        gw: selectedGw,
+        status: status,
+        isFailing: status !== 'SUCCESS'
+      });
+
+      // Periodic origin emitter shockwave
+      if (Math.random() < 0.22) {
+        ripples.push({
+          x: 65,
+          y: canvas.height / 2,
+          radius: 10,
+          maxRadius: 36,
+          color: '2, 132, 199',
+          alpha: 0.6,
+          lineWidth: 2
+        });
+      }
+    }
+
+    function renderCanvas() {
+      canvasTime += 0.035;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const hubX = 65;
+      const hubY = canvas.height / 2;
+
+      // 1. Draw Multi-Path Highway Conduits
+      for (const key in gateways) {
+        const gw = gateways[key];
+        const ctrlX = canvas.width * 0.45;
+        const ctrlY = hubY + (gw.y - hubY) * 0.25;
+
+        // Subtle Ambient Fiber Path
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(hubX, hubY);
+        ctx.quadraticCurveTo(ctrlX, ctrlY, gw.x, gw.y);
+        ctx.strokeStyle = gw.isDegraded ? 'rgba(244, 63, 94, 0.16)' : 'rgba(2, 132, 199, 0.12)';
+        ctx.lineWidth = 10;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // Pulsing Directional Data Beam
+        ctx.beginPath();
+        ctx.moveTo(hubX, hubY);
+        ctx.quadraticCurveTo(ctrlX, ctrlY, gw.x, gw.y);
+        ctx.strokeStyle = gw.isDegraded ? 'rgba(244, 63, 94, 0.45)' : 'rgba(14, 165, 233, 0.35)';
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([6, 12]);
+        ctx.lineDashOffset = -canvasTime * 24;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 2. Draw Ingestion Hub with Orbital Radar
+      ctx.save();
+      // Outer breathing ring
+      const hubAura = 24 + Math.sin(canvasTime * 2) * 3;
+      ctx.beginPath();
+      ctx.arc(hubX, hubY, hubAura, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(2, 132, 199, 0.08)";
+      ctx.fill();
+
+      // Rotating orbital satellite pip
+      const orbitR = 30;
+      const pipAngle = canvasTime * 1.5;
+      ctx.beginPath();
+      ctx.arc(hubX + Math.cos(pipAngle) * orbitR, hubY + Math.sin(pipAngle) * orbitR, 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = "#0284c7";
+      ctx.shadowColor = "#0284c7";
+      ctx.shadowBlur = 6;
+      ctx.fill();
+
+      // Central Obsidian Hub Body
+      ctx.beginPath();
+      ctx.arc(hubX, hubY, 22, 0, Math.PI * 2);
+      ctx.fillStyle = "#0f172a";
+      ctx.shadowColor = "rgba(15, 23, 42, 0.25)";
+      ctx.shadowBlur = 12;
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 9px 'JetBrains Mono', monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("UPI APP", hubX, hubY + 3);
+
+      // 3. Draw Gateway Sink Pods
+      for (const key in gateways) {
+        const gw = gateways[key];
+        gw.pulseScale = gw.pulseScale || 1.0;
+        if (gw.pulseScale > 1.0) gw.pulseScale = Math.max(1.0, gw.pulseScale - 0.025);
+
+        const currentR = 18 * gw.pulseScale;
+
+        ctx.save();
+        // Degraded jitter / electric warning aura
+        let shakeX = 0, shakeY = 0;
+        if (gw.isDegraded) {
+          shakeX = (Math.random() - 0.5) * 2;
+          shakeY = (Math.random() - 0.5) * 2;
+
+          ctx.beginPath();
+          ctx.arc(gw.x + shakeX, gw.y + shakeY, currentR + 6 + Math.sin(canvasTime * 6) * 3, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(244, 63, 94, 0.12)";
+          ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(gw.x + shakeX, gw.y + shakeY, currentR, 0, Math.PI * 2);
+        ctx.fillStyle = gw.isDegraded ? "#fff1f2" : "#ffffff";
+        ctx.strokeStyle = gw.isDegraded ? "#f43f5e" : gw.color;
+        ctx.lineWidth = gw.isDegraded ? 2.6 : 2.2;
+        ctx.shadowColor = gw.isDegraded ? "rgba(244, 63, 94, 0.4)" : "rgba(15, 23, 42, 0.08)";
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+        ctx.fill();
+        ctx.restore();
+
+        ctx.fillStyle = gw.isDegraded ? "#e11d48" : "#0f172a";
+        ctx.font = "bold 9px 'JetBrains Mono', monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(gw.id, gw.x + shakeX, gw.y + shakeY + 3);
+
+        if (gw.isDegraded) {
+          ctx.fillStyle = "#e11d48";
+          ctx.font = "bold 8px 'Plus Jakarta Sans', sans-serif";
+          ctx.fillText("FAILING", gw.x, gw.y + 30);
+        }
+      }
+
+      // 4. Update and Draw Fluid Streaming Packets with Dynamic Comet Tails
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.progress += p.speed;
+
+        const startX = p.startX;
+        const startY = p.startY;
+        const ctrlX = canvas.width * 0.45;
+        // Curve arc modulated by laneSpread
+        const ctrlY = startY + (p.targetY - startY) * 0.25 + p.laneSpread;
+
+        const t = p.progress;
+        const curX = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * ctrlX + t * t * p.targetX;
+        const curY = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * ctrlY + t * t * p.targetY;
+
+        // Record trailing history
+        p.trail.unshift({ x: curX, y: curY });
+        if (p.trail.length > 7) p.trail.pop();
+
+        // Draw Streamlined Comet Tail
+        if (p.trail.length > 1) {
+          ctx.save();
+          for (let k = 0; k < p.trail.length - 1; k++) {
+            const pt1 = p.trail[k];
+            const pt2 = p.trail[k + 1];
+            const segAlpha = (1 - k / p.trail.length) * 0.55;
+            const segWidth = p.radius * (1 - k / p.trail.length);
+
+            ctx.beginPath();
+            ctx.moveTo(pt1.x, pt1.y);
+            ctx.lineTo(pt2.x, pt2.y);
+            ctx.strokeStyle = `rgba(${p.rgb}, ${segAlpha})`;
+            ctx.lineWidth = Math.max(1, segWidth);
+            ctx.lineCap = 'round';
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        // Glowing Leading Nucleus
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(curX, curY, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.restore();
+
+        // Destination Arrival Hook
+        if (p.progress >= 1) {
+          p.gw.pulseScale = 1.25;
+
+          // Shockwave Impact Ring
+          ripples.push({
+            x: p.targetX,
+            y: p.targetY,
+            radius: 12,
+            maxRadius: p.isFailing ? 45 : 32,
+            color: p.rgb,
+            alpha: 0.8,
+            lineWidth: p.isFailing ? 2.5 : 1.8
+          });
+
+          // Dispersal Sparks on Failure / Brownout
+          if (p.isFailing) {
+            for (let s = 0; s < 5; s++) {
+              const ang = Math.random() * Math.PI * 2;
+              const spd = 1.2 + Math.random() * 2.4;
+              sparks.push({
+                x: p.targetX,
+                y: p.targetY,
+                vx: Math.cos(ang) * spd,
+                vy: Math.sin(ang) * spd,
+                life: 1.0,
+                color: p.color
+              });
+            }
+          }
+
+          particles.splice(i, 1);
+        }
+      }
+
+      // 5. Render Expanding Shockwave Ripples
+      for (let r = ripples.length - 1; r >= 0; r--) {
+        const rp = ripples[r];
+        rp.radius += 1.3;
+        rp.alpha -= 0.035;
+
+        if (rp.alpha <= 0 || rp.radius >= rp.maxRadius) {
+          ripples.splice(r, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(rp.x, rp.y, rp.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${rp.color}, ${Math.max(0, rp.alpha)})`;
+        ctx.lineWidth = rp.lineWidth;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 6. Render Failure Dispersal Spark Particles
+      for (let s = sparks.length - 1; s >= 0; s--) {
+        const sp = sparks[s];
+        sp.x += sp.vx;
+        sp.y += sp.vy;
+        sp.life -= 0.045;
+
+        if (sp.life <= 0) {
+          sparks.splice(s, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, 2 * sp.life, 0, Math.PI * 2);
+        ctx.fillStyle = sp.color;
+        ctx.shadowColor = sp.color;
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      requestAnimationFrame(renderCanvas);
+    }
+
+    // --- STREAMING_CHUNK:Transaction execution engine and live ledger streaming... ---
+    const vpaHandles = ["@okhdfcbank", "@okicici", "@okaxis", "@paytm", "@ibl", "@ybl"];
+    const names = ["arjun", "neha", "rohit", "priya", "vikram", "ananya", "siddharth", "pooja"];
+
+    function executeTransaction() {
+      if (!isRunning) return;
+
+      totalTransactions++;
+
+      const { chosen, scores } = selectOptimalGateway();
+      chosen.routesCount++;
+
+      const meanLat = chosen.isDegraded ? chosen.degradedLatency : chosen.baseLatency;
+      const srChance = chosen.isDegraded ? chosen.degradedSuccessRate : chosen.baseSuccessRate;
+
+      const jitter = (Math.random() + Math.random() + Math.random() - 1.5) * 0.25;
+      const latency = Math.max(25, Math.round(meanLat * (1 + jitter)));
+
+      const isSuccess = (latency < 1000) && (Math.random() <= srChance);
+      const status = isSuccess ? "SUCCESS" : (latency >= 1000 ? "TIMEOUT_PENDING" : "FAILED");
+
+      if (isSuccess) {
+        chosen.successCount++;
+        successfulTransactions++;
+        playNote("G5");
+      } else {
+        playNote("C3");
+      }
+
+      chosen.recentLatency.push(latency);
+      if (chosen.recentLatency.length > 35) chosen.recentLatency.shift();
+
+      // Online Bayesian Beta Update with Gamma decay
+      chosen.alpha = 1.0 + 0.98 * (chosen.alpha - 1.0);
+      chosen.beta = 1.0 + 0.98 * (chosen.beta - 1.0);
+      if (isSuccess) {
+        chosen.alpha += 1.0;
+      } else {
+        chosen.beta += 1.4;
+      }
+
+      const amount = Math.floor(Math.random() * 4900) + 100;
+      const vortexFee = amount * chosen.mdr;
+      const naiveFee = amount * 0.018;
+      totalFeesVortex += vortexFee;
+      totalFeesNaive += naiveFee;
+
+      spawnPacket(chosen, status, latency);
+
+      prependStreamRow({
+        id: "txn_" + Math.random().toString(36).substr(2, 7).toUpperCase(),
+        vpa: names[Math.floor(Math.random() * names.length)] + vpaHandles[Math.floor(Math.random() * vpaHandles.length)],
+        amount: "₹" + amount.toLocaleString(),
+        gateway: chosen.id,
+        gatewayColor: chosen.color,
+        latency: latency + " ms",
+        fee: "₹" + vortexFee.toFixed(2),
+        score: scores[chosen.id].score.toFixed(3),
+        status: status
+      });
+    }
+
+    function prependStreamRow(tx) {
+      const tbody = document.getElementById("txn-stream-body");
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-50 transition-colors";
+
+      let badgeClass = "bg-emerald-50 text-emerald-700 border border-emerald-200";
+      if (tx.status === "FAILED") badgeClass = "bg-rose-50 text-rose-700 border border-rose-200";
+      if (tx.status === "TIMEOUT_PENDING") badgeClass = "bg-amber-50 text-amber-700 border border-amber-200";
+
+      tr.innerHTML = `
+        <td class="py-2 px-4 text-slate-500 font-mono">${tx.id}</td>
+        <td class="py-2 px-3 text-slate-700 font-mono">${tx.vpa}</td>
+        <td class="py-2 px-3 text-slate-900 font-semibold">${tx.amount}</td>
+        <td class="py-2 px-3">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold" style="background: ${tx.gatewayColor}18; color: ${tx.gatewayColor}">
+            ${tx.gateway}
+          </span>
+        </td>
+        <td class="py-2 px-3 ${parseInt(tx.latency) > 800 ? 'text-rose-600 font-bold' : 'text-slate-600'}">${tx.latency}</td>
+        <td class="py-2 px-3 text-slate-800">${tx.fee}</td>
+        <td class="py-2 px-3 text-sky-700 font-semibold">${tx.score}</td>
+        <td class="py-2 px-4 text-right">
+          <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${badgeClass}">
+            ${tx.status}
+          </span>
+        </td>
+      `;
+
+      tbody.insertBefore(tr, tbody.firstChild);
+      while (tbody.children.length > 25) {
+        tbody.removeChild(tbody.lastChild);
+      }
+    }
+
+    // --- STREAMING_CHUNK:Refreshing metrics, arbitrage totals, and charts... ---
+    function refreshMetrics() {
+      document.getElementById("stat-total-tx").textContent = totalTransactions.toLocaleString();
+      const sr = totalTransactions > 0 ? ((successfulTransactions / totalTransactions) * 100).toFixed(1) : "99.4";
+      document.getElementById("stat-overall-sr").textContent = sr + "%";
+
+      let allLatencies = [];
+      for (const k in gateways) allLatencies = allLatencies.concat(gateways[k].recentLatency);
+      const overallP95 = computeP95(allLatencies);
+      document.getElementById("stat-avg-p95").textContent = Math.round(overallP95) + " ms";
+
+      const saved = Math.max(0, totalFeesNaive - totalFeesVortex);
+      document.getElementById("stat-fees-saved").textContent = "₹" + saved.toFixed(2);
+
+      const vfAmount = document.getElementById("vf-amount");
+      const vfDecimals = document.getElementById("vf-decimals");
+      if (vfAmount && vfDecimals) {
+        const savedInt = Math.floor(saved);
+        const savedFrac = (saved - savedInt).toFixed(2).substring(1);
+        vfAmount.textContent = savedInt.toLocaleString();
+        vfDecimals.textContent = savedFrac;
+      }
+
+      // Network Health Badge
+      const healthBadge = document.getElementById("badge-health");
+      if (sr >= 95) {
+        healthBadge.className = "text-emerald-700 font-semibold flex items-center gap-1.5 mt-0.5";
+        healthBadge.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> OPTIMAL (${sr}%)`;
+      } else if (sr >= 85) {
+        healthBadge.className = "text-amber-700 font-semibold flex items-center gap-1.5 mt-0.5";
+        healthBadge.innerHTML = `<span class="h-2 w-2 rounded-full bg-amber-500"></span> DEGRADED (${sr}%)`;
+      } else {
+        healthBadge.className = "text-rose-700 font-semibold flex items-center gap-1.5 mt-0.5";
+        healthBadge.innerHTML = `<span class="h-2 w-2 rounded-full bg-rose-500 animate-ping"></span> CRITICAL (${sr}%)`;
+      }
+
+      // Update Per-Gateway Status Cards
+      const totalRouted = Object.values(gateways).reduce((acc, g) => acc + g.routesCount, 0);
+      const allocationShares = [];
+      const currentP95s = [];
+
+      for (const key in gateways) {
+        const gw = gateways[key];
+        const share = totalRouted > 0 ? ((gw.routesCount / totalRouted) * 100).toFixed(1) : "25.0";
+        allocationShares.push(parseFloat(share));
+
+        const p95 = Math.round(computeP95(gw.recentLatency));
+        currentP95s.push(p95);
+
+        const gwSR = gw.routesCount > 0 ? ((gw.successCount / gw.routesCount) * 100).toFixed(1) : "100";
+
+        const p95El = document.getElementById(`metric-p95-${gw.id}`);
+        if (p95El) {
+          p95El.textContent = p95 + " ms";
+          p95El.className = p95 > 800 ? "text-rose-600 font-bold text-sm" : "text-slate-900 font-bold text-sm";
+        }
+        const srEl = document.getElementById(`metric-sr-${gw.id}`);
+        if (srEl) {
+          srEl.textContent = gwSR + "%";
+          srEl.className = gwSR < 85 ? "text-rose-600 font-bold text-sm" : "text-emerald-700 font-bold text-sm";
+        }
+        const betaEl = document.getElementById(`metric-beta-${gw.id}`);
+        if (betaEl) betaEl.textContent = `${gw.alpha.toFixed(1)}, ${gw.beta.toFixed(1)}`;
+
+        const shareEl = document.getElementById(`metric-share-${gw.id}`);
+        if (shareEl) shareEl.textContent = share + "%";
+
+        const barEl = document.getElementById(`bar-share-${gw.id}`);
+        if (barEl) barEl.style.width = share + "%";
+      }
+
+      // Update Chart.js Series
+      if (trafficChart && latencyChart) {
+        trafficChart.data.datasets.forEach((ds, idx) => {
+          ds.data.shift();
+          ds.data.push(allocationShares[idx]);
+        });
+        trafficChart.update();
+
+        latencyChart.data.datasets.forEach((ds, idx) => {
+          ds.data.shift();
+          ds.data.push(currentP95s[idx]);
+        });
+        latencyChart.update();
+      }
+    }
+
+    // --- Interactive Parameter Controls ---
+    function updateWeights() {
+      weights.w_latency = parseFloat(document.getElementById("slider-w-lat").value);
+      weights.w_fee = parseFloat(document.getElementById("slider-w-fee").value);
+      document.getElementById("label-w-lat").textContent = weights.w_latency.toFixed(2);
+      document.getElementById("label-w-fee").textContent = weights.w_fee.toFixed(2);
+    }
+
+    function setTPS(tps) {
+      transactionsPerSecond = tps;
+      document.querySelectorAll(".tps-btn").forEach(btn => {
+        if (parseInt(btn.getAttribute("data-tps")) === tps) {
+          btn.className = "tps-btn px-3 py-1 rounded-full bg-white text-slate-900 font-bold shadow-sm transition";
+        } else {
+          btn.className = "tps-btn px-3 py-1 rounded-full text-slate-600 font-medium transition";
+        }
+      });
+      restartSimInterval();
+    }
+
+    function toggleSimulation() {
+      isRunning = !isRunning;
+      const icon = document.getElementById("sim-icon");
+      const label = document.getElementById("sim-label");
+
+      if (isRunning) {
+        icon.className = "fa-solid fa-pause text-xs";
+        label.textContent = "Pause Flow";
+      } else {
+        icon.className = "fa-solid fa-play text-xs";
+        label.textContent = "Resume Flow";
+      }
+    }
+
+    function resetSimulation() {
+      totalTransactions = 0;
+      successfulTransactions = 0;
+      totalFeesVortex = 0;
+      totalFeesNaive = 0;
+      particles.length = 0;
+
+      for (const k in gateways) {
+        const gw = gateways[k];
+        gw.alpha = 8.0;
+        gw.beta = 1.0;
+        gw.routesCount = 0;
+        gw.successCount = 0;
+        gw.recentLatency = [];
+        if (gw.isDegraded) toggleGatewayFault(gw.id);
+      }
+
+      document.getElementById("txn-stream-body").innerHTML = "";
+      refreshMetrics();
+    }
+
+    let simIntervalId = null;
+    function restartSimInterval() {
+      if (simIntervalId) clearInterval(simIntervalId);
+      simIntervalId = setInterval(executeTransaction, 1000 / transactionsPerSecond);
+    }
+
+    // --- Window Initialization ---
+    window.onload = () => {
+      buildGatewayCards();
+      setupCharts();
+      resizeCanvas();
+      renderCanvas();
+
+      restartSimInterval();
+      setInterval(refreshMetrics, 500);
+
+      // Attempt immediate live backend connection
+      connectWebSocket();
+    };
+  </script>
+</body>
+
+</html>
